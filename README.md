@@ -105,7 +105,7 @@ venv/
 
 ## License
 
-This project is licensed under the MIT License 
+This project is not licensed and for **educational purpose**, **do not modify this code.**
 
 ## Author
 ### Jesli
