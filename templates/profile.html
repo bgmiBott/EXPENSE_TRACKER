@@ -3,41 +3,86 @@
 {% block title %}Profile{% endblock %}
 
 {% block content %}
-    <h2>Your Profile</h2>
-    
-    <form method="POST" class="profile-form">
-        <div class="form-group">
-            <label for="full_name">Full Name:</label>
-            <input type="text" id="full_name" name="full_name" value="{{ profile.full_name }}">
-        </div>
-        
-        <div class="form-group">
-            <label for="email">Email:</label>
-            <input type="email" id="email" name="email" value="{{ profile.email }}">
-        </div>
-        
-        <div class="form-group">
-            <label for="phone">Phone:</label>
-            <input type="tel" id="phone" name="phone" value="{{ profile.phone }}">
-        </div>
-        
-        <div class="form-group">
-            <label for="address">Address:</label>
-            <textarea id="address" name="address">{{ profile.address }}</textarea>
-        </div>
-        
-        <div class="form-group">
-            <label for="currency">Currency Symbol:</label>
-            <select id="currency" name="currency">
-                <option value="₹" {% if profile.currency == '₹' %}selected{% endif %}>Indian Rupee (₹)</option>
-                <option value="$" {% if profile.currency == '$' %}selected{% endif %}>US Dollar ($)</option>
-                <option value="€" {% if profile.currency == '€' %}selected{% endif %}>Euro (€)</option>
-                <option value="£" {% if profile.currency == '£' %}selected{% endif %}>Pound (£)</option>
-                <option value="¥" {% if profile.currency == '¥' %}selected{% endif %}>Yen (¥)</option>
-            </select>
-        </div>
-        
-        <button type="submit" class="btn">Save Profile</button>
-        <a href="{{ url_for('dashboard') }}" class="btn secondary">Back to Dashboard</a>
-    </form>
+<div class="profile-page">
+
+    <!-- Header -->
+    <div class="profile-header">
+        <h2>Your Profile</h2>
+        <p class="profile-subtitle">
+            Manage your personal information and preferences
+        </p>
+    </div>
+
+    <!-- Profile Card -->
+    <div class="profile-card">
+        <form method="POST" class="profile-form">
+
+            <div class="form-group">
+                <label for="full_name">Full Name</label>
+                <input
+                    type="text"
+                    id="full_name"
+                    name="full_name"
+                    value="{{ profile.full_name }}"
+                    placeholder="Enter your full name"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value="{{ profile.email }}"
+                    placeholder="Enter your email"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="phone">Phone</label>
+                <input
+                    type="tel"
+                    id="phone"
+                    name="phone"
+                    value="{{ profile.phone }}"
+                    placeholder="Enter your phone number"
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="address">Address</label>
+                <textarea
+                    id="address"
+                    name="address"
+                    rows="3"
+                    placeholder="Enter your address"
+                >{{ profile.address }}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="currency">Preferred Currency</label>
+                <select id="currency" name="currency">
+                    <option value="₹" {% if profile.currency == '₹' %}selected{% endif %}>Indian Rupee (₹)</option>
+                    <option value="$" {% if profile.currency == '$' %}selected{% endif %}>US Dollar ($)</option>
+                    <option value="€" {% if profile.currency == '€' %}selected{% endif %}>Euro (€)</option>
+                    <option value="£" {% if profile.currency == '£' %}selected{% endif %}>Pound (£)</option>
+                    <option value="¥" {% if profile.currency == '¥' %}selected{% endif %}>Yen (¥)</option>
+                </select>
+            </div>
+
+            <!-- Actions -->
+            <div class="profile-actions">
+                <button type="submit" class="btn btn-primary">
+                    Save Profile
+                </button>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                    Back to Dashboard
+                </a>
+            </div>
+
+        </form>
+    </div>
+
+</div>
 {% endblock %}

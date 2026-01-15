@@ -3,42 +3,79 @@
 {% block title %}Add Transaction{% endblock %}
 
 {% block content %}
-    <h2>Add New Transaction</h2>
-    
-    <form method="POST">
-        <div class="form-group">
-            <label for="type">Type</label>
-            <select id="type" name="type" required>
-                <option value="Income">Income</option>
-                <option value="Expense">Expense</option>
-                <option value="Savings">Savings</option>
-            </select>
-        </div>
-        
-        <div class="form-group">
-            <label for="amount">Amount (₹)</label>
-            <input type="number" id="amount" name="amount" step="0.01" min="0" required>
-        </div>
-        
-        <div class="form-group">
-            <label for="category">Category</label>
-            <select id="category" name="category" required>
-                <option value="Salary">Salary</option>
-                <option value="Food">Food</option>
-                <option value="Transport">Transport</option>
-                <option value="Entertainment">Entertainment</option>
-                <option value="Utilities">Utilities</option>
-                <option value="Savings">Savings</option>
-                <option value="Other">Other</option>
-            </select>
-        </div>
-        
-        <div class="form-group">
-            <label for="date">Date</label>
-            <input type="date" id="date" name="date" required value="{{ datetime.now().strftime('%Y-%m-%d') }}">
-        </div>
-        
-        <button type="submit" class="btn">Add Transaction</button>
-        <a href="{{ url_for('dashboard') }}" class="btn">Cancel</a>
-    </form>
+<div class="form-page">
+
+    <!-- Page Heading -->
+    <div class="form-header">
+        <h2>Add New Transaction</h2>
+        <p class="form-subtitle">
+            Keep track of your income, expenses, and savings
+        </p>
+    </div>
+
+    <!-- Card -->
+    <div class="form-card">
+        <form method="POST" class="transaction-form">
+
+            <div class="form-group">
+                <label for="type">Transaction Type</label>
+                <select id="type" name="type" required>
+                    <option value="Income">Income</option>
+                    <option value="Expense">Expense</option>
+                    <option value="Savings">Savings</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="amount">Amount (₹)</label>
+                <input
+                    type="number"
+                    id="amount"
+                    name="amount"
+                    step="0.01"
+                    min="0"
+                    placeholder="Enter amount"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="category">Category</label>
+                <select id="category" name="category" required>
+                    <option value="Salary">Salary</option>
+                    <option value="Food">Food</option>
+                    <option value="Transport">Transport</option>
+                    <option value="Entertainment">Entertainment</option>
+                    <option value="Utilities">Utilities</option>
+                    <option value="Savings">Savings</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="date">Transaction Date</label>
+                <input
+                    type="date"
+                    id="date"
+                    name="date"
+                    required
+                    value="{{ datetime.now().strftime('%Y-%m-%d') }}"
+                >
+            </div>
+
+            <!-- Actions -->
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    Add Transaction
+                </button>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-secondary">
+                    Cancel
+                </a>
+            </div>
+
+        </form>
+    </div>
+
+</div>
 {% endblock %}
+

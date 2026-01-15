@@ -2,109 +2,86 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from datetime import datetime
-import psycopg2
+import sqlite3
 import os
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
+DB_NAME = "expense_data.db"
 
-#for local server
-
-# def get_db_connection():
-#     """Establishes a connection to the PostgreSQL database."""
-#     try:
-#         conn = psycopg2.connect(
-#             host=os.getenv('POSTGRES_HOST', 'localhost'),
-#             database=os.getenv('POSTGRES_DB', 'expense_tracker'),
-#             user=os.getenv('POSTGRES_USER', 'postgres'),
-#             password=os.getenv('POSTGRES_PASSWORD', 'Jeslipriya07'),
-#             port=os.getenv('POSTGRES_PORT', '5432')
-#         )
-#         return conn
-#     except psycopg2.Error as e:
-#         print(f"Error connecting to PostgreSQL database: {e}")
-#         raise
+def get_db_connection():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 def generate_graph(user_id, month):
     """Generates a financial overview graph for the given user and month."""
-    conn = None
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
     try:
-        # conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Get daily data
-        cursor.execute('''
+        cursor.execute("""
             SELECT 
                 date,
-                SUM(CASE WHEN type = 'Income' THEN amount ELSE 0 END) as income,
-                SUM(CASE WHEN type = 'Expense' THEN amount ELSE 0 END) as expense,
-                SUM(CASE WHEN type = 'Savings' THEN amount ELSE 0 END) as savings
+                SUM(CASE WHEN type='Income' THEN amount ELSE 0 END) AS income,
+                SUM(CASE WHEN type='Expense' THEN amount ELSE 0 END) AS expense,
+                SUM(CASE WHEN type='Savings' THEN amount ELSE 0 END) AS savings
             FROM transactions
-            WHERE user_id = %s AND to_char(date, 'YYYY-MM') = %s
+            WHERE user_id=? AND substr(date,1,7)=?
             GROUP BY date
             ORDER BY date
-        ''', (user_id, month))
-        
-        data = cursor.fetchall()
-        
-        if not data:
+        """, (user_id, month))
+
+        rows = cursor.fetchall()
+
+        if not rows:
             return None
-        
-        dates = [row[0].strftime('%d') for row in data]  # Get just the day part
-        income = [row[1] for row in data]
-        expenses = [row[2] for row in data]
-        savings = [row[3] for row in data]
-        
-        # Calculate cumulative values
-        cum_income = []
-        cum_expenses = []
-        cum_savings = []
-        total_i = 0
-        total_e = 0
-        total_s = 0
-        
+
+        # SQLite stores date as TEXT (YYYY-MM-DD)
+        dates = [row["date"][-2:] for row in rows]  # day part
+        income = [float(row["income"]) for row in rows]
+        expenses = [float(row["expense"]) for row in rows]
+        savings = [float(row["savings"]) for row in rows]
+
+        # ---- Cumulative values ----
+        cum_income, cum_expenses, cum_savings = [], [], []
+        ti = te = ts = 0
+
         for i, e, s in zip(income, expenses, savings):
-            total_i += i
-            total_e += e
-            total_s += s
-            cum_income.append(total_i)
-            cum_expenses.append(total_e)
-            cum_savings.append(total_s)
-        
-        # Create figure
-        plt.figure(figsize=(10, 6))
-        
-        # Bar chart
-        bar_width = 0.2
+            ti += i
+            te += e
+            ts += s
+            cum_income.append(ti)
+            cum_expenses.append(te)
+            cum_savings.append(ts)
+
+        # ---- Plot ----
+        plt.figure(figsize=(6,3))
+        bar_width = 0.25
         x = range(len(dates))
 
         plt.bar([i - bar_width for i in x], cum_income, width=bar_width, label='Income', color='green')
         plt.bar(x, cum_expenses, width=bar_width, label='Expenses', color='red')
         plt.bar([i + bar_width for i in x], cum_savings, width=bar_width, label='Savings', color='blue')
-        plt.xticks(x, dates)              
 
-        # Style
+        plt.xticks(x, dates)
         plt.title(f'Financial Overview - {datetime.strptime(month, "%Y-%m").strftime("%B %Y")}')
         plt.xlabel('Day of Month')
         plt.ylabel('Amount')
         plt.legend()
         plt.grid(True)
-        
-        # Save
+
         os.makedirs('static/graphs', exist_ok=True)
-        graph_path = f'static/graphs/graph_{user_id}_{month}.png'
-        plt.savefig(graph_path, dpi=100, bbox_inches='tight')
+        file_name = f'graph_{user_id}_{month}.png'
+        file_path = os.path.join('static/graphs', file_name)
+
+        plt.savefig(file_path, dpi=100, bbox_inches='tight')
         plt.close()
-        
-        return f'graphs/graph_{user_id}_{month}.png'
-    except psycopg2.Error as e:
-        print(f"Database error: {e}")
-        return None
+
+        return f'graphs/{file_name}'
+
     except Exception as e:
-        print(f"Error generating graph: {e}")
+        print("Graph error:", e)
         return None
+
     finally:
-        if conn:
-            cursor.close()
-            conn.close()
+        cursor.close()
+        conn.close()

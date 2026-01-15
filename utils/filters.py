@@ -1,65 +1,49 @@
-import psycopg2
-from dotenv import load_dotenv
-import os
+import sqlite3
 
-# Load environment variables
-load_dotenv()
+DB_NAME = "expense_data.db"
 
-#for local server
-
-# def get_db_connection():
-#     """Establishes a connection to the PostgreSQL database."""
-#     try:
-#         conn = psycopg2.connect(
-#             host=os.getenv('POSTGRES_HOST', 'localhost'),
-#             database=os.getenv('POSTGRES_DB', 'expense_tracker'),
-#             user=os.getenv('POSTGRES_USER', 'postgres'),
-#             password=os.getenv('POSTGRES_PASSWORD', 'Jeslipriya07'),
-#             port=os.getenv('POSTGRES_PORT', '5432')
-#         )
-#         return conn
-#     except psycopg2.Error as e:
-#         print(f"Error connecting to PostgreSQL database: {e}")
-#         raise
+def get_db_connection():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 def filter_data(user_id, start_date, end_date, category=None):
     """Filters transaction data based on user criteria."""
-    conn = None
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
     try:
-        # conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        query = '''
-            SELECT type, amount, category, date 
-            FROM transactions 
-            WHERE user_id = %s AND date BETWEEN %s AND %s
-        '''
+        query = """
+            SELECT type, amount, category, date
+            FROM transactions
+            WHERE user_id=? AND date BETWEEN ? AND ?
+        """
         params = [user_id, start_date, end_date]
-        
+
         if category:
-            query += ' AND category = %s'
+            query += " AND category=?"
             params.append(category)
-        
-        query += ' ORDER BY date'
-        
-        cursor.execute(query, tuple(params))
+
+        query += " ORDER BY date"
+
+        cursor.execute(query, params)
         rows = cursor.fetchall()
-        
-        # Convert to list of dictionaries for easier handling
+
         result = []
         for row in rows:
             result.append({
-                'type': row[0],
-                'amount': float(row[1]),
-                'category': row[2],
-                'date': row[3].strftime('%Y-%m-%d')
+                "type": row["type"],
+                "amount": float(row["amount"]),
+                "category": row["category"],
+                "date": row["date"]   # already YYYY-MM-DD string
             })
-        
+
         return result
-    except psycopg2.Error as e:
-        print(f"Database error: {e}")
+
+    except Exception as e:
+        print("Filter error:", e)
         return []
+
     finally:
-        if conn:
-            cursor.close()
-            conn.close()
+        cursor.close()
+        conn.close()

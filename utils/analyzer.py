@@ -1,101 +1,88 @@
-import psycopg2
-from datetime import datetime
-from dotenv import load_dotenv
-import os
+import sqlite3
 from decimal import Decimal
 
-# Load environment variables
-load_dotenv()
+DB_NAME = "expense_data.db"
 
-#for local server
-
-# def get_db_connection():
-#     """Establishes a connection to the PostgreSQL database."""
-#     try:
-#         conn = psycopg2.connect(
-#             host=os.getenv('POSTGRES_HOST', 'localhost'),
-#             database=os.getenv('POSTGRES_DB', 'expense_tracker'),
-#             user=os.getenv('POSTGRES_USER', 'postgres'),
-#             password=os.getenv('POSTGRES_PASSWORD', ''),
-#             port=os.getenv('POSTGRES_PORT', '5432')
-#         )
-#         return conn
-#     except psycopg2.Error as e:
-#         print(f"Error connecting to PostgreSQL database: {e}")
-#         raise
+def get_db_connection():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 def analyze_spending(user_id, month):
     """Analyzes spending patterns and provides advice."""
-    conn = None
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    advice = []
+
     try:
-        # conn = get_db_connection()
-        cursor = conn.cursor()
-        
-        # Get total income and expenses for the month
-        cursor.execute('''
+        # ---- Total income & expense for month ----
+        cursor.execute("""
             SELECT 
-                COALESCE(SUM(CASE WHEN type = 'Income' THEN amount ELSE 0 END)::float, 0) as income,
-                COALESCE(SUM(CASE WHEN type = 'Expense' THEN amount ELSE 0 END)::float, 0) as expense
+                IFNULL(SUM(CASE WHEN type='Income' THEN amount ELSE 0 END), 0),
+                IFNULL(SUM(CASE WHEN type='Expense' THEN amount ELSE 0 END), 0)
             FROM transactions
-            WHERE user_id = %s AND to_char(date, 'YYYY-MM') = %s
-        ''', (user_id, month))
-        
+            WHERE user_id=? AND substr(date,1,7)=?
+        """, (user_id, month))
+
         total_income, total_expense = cursor.fetchone()
-        # Convert to float if they're Decimal
-        if isinstance(total_income, Decimal):
-            total_income = float(total_income)
-        if isinstance(total_expense, Decimal):
-            total_expense = float(total_expense)
-            
+
+        total_income = float(total_income)
+        total_expense = float(total_expense)
+
         savings = total_income - total_expense
-        
-        advice = []
-        
-        # Savings advice
-        if savings < 0:
-            advice.append("⚠️ You're spending more than you earn this month! Consider reducing expenses.")
-        elif savings > 0 and savings < (0.2 * total_income):
-            advice.append("💡 You're saving some money, but try to save at least 20% of your income.")
-        elif savings >= (0.2 * total_income):
-            advice.append("✅ Great job! You're saving a healthy portion of your income.")
-        
-        # Get expense breakdown by category
-        cursor.execute('''
-            SELECT category, SUM(amount)::float as total
+
+        # ---- Savings advice ----
+        if total_income > 0:
+            if savings < 0:
+                advice.append("⚠️ You're spending more than you earn this month! Consider reducing expenses.")
+            elif savings < (0.2 * total_income):
+                advice.append("💡 You're saving some money, but try to save at least 20% of your income.")
+            else:
+                advice.append("✅ Great job! You're saving a healthy portion of your income.")
+
+        # ---- Expense breakdown by category ----
+        cursor.execute("""
+            SELECT category, SUM(amount)
             FROM transactions
-            WHERE user_id = %s AND type = 'Expense' AND to_char(date, 'YYYY-MM') = %s
+            WHERE user_id=? AND type='Expense' AND substr(date,1,7)=?
             GROUP BY category
-            ORDER BY total DESC
-        ''', (user_id, month))
-        
+            ORDER BY SUM(amount) DESC
+        """, (user_id, month))
+
         expenses_by_category = cursor.fetchall()
-        
-        if expenses_by_category:
-            # Check if any single category is more than 50% of expenses
-            for category, amount in expenses_by_category:
-                if isinstance(amount, Decimal):
-                    amount = float(amount)
-                
-                if amount > 0.5 * total_expense:
-                    advice.append(f"⚠️ You're spending {amount/total_expense*100:.1f}% of your expenses on '{category}'. Consider diversifying your spending.")
-                
-                # Generic advice for top categories
-                if amount > 0.3 * total_expense:
-                    advice.append(f"💸 You're spending a lot on '{category}'. Maybe look for ways to reduce this expense.")
-        
-        # Check if there are any expenses at all
-        if total_expense == 0 and total_income > 0:
+
+        if expenses_by_category and total_expense > 0:
+            for row in expenses_by_category:
+                category = row["category"]
+                amount = float(row[1])
+
+                percent = (amount / total_expense) * 100
+
+                if percent > 50:
+                    advice.append(
+                        f"⚠️ You're spending {percent:.1f}% of your expenses on '{category}'. Consider diversifying."
+                    )
+                elif percent > 30:
+                    advice.append(
+                        f"💸 You're spending a lot on '{category}'. Maybe look for ways to reduce this expense."
+                    )
+
+        # ---- No expense / no income checks ----
+        if total_income > 0 and total_expense == 0:
             advice.append("🌟 You haven't recorded any expenses this month. Great savings!")
-        
-        # Check if income is zero
+
         if total_income == 0:
             advice.append("🔄 You haven't recorded any income this month. Don't forget to track your earnings!")
-        
+
+        if not advice:
+            advice.append("📊 Keep tracking your expenses for better insights.")
+
         return advice
-    except psycopg2.Error as e:
-        print(f"Database error: {e}")
+
+    except Exception as e:
+        print("Analyzer error:", e)
         return ["An error occurred while analyzing your spending."]
     finally:
-        if conn:
-            cursor.close()
-            conn.close()
+        cursor.close()
+        conn.close()
